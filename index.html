@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кардиограмма Урока</title>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    
+    <style>
+        :root { --primary: #4a6fa5; --success: #2ec4b6; --danger: #e71d36; --bg: #f8f9fa; --text: #2b2d42; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 900px; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        h1, h2, h3 { text-align: center; color: var(--primary); }
+        .hidden { display: none !important; }
+        .btn { display: inline-block; background: var(--primary); color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px; transition: 0.2s; text-align: center; }
+        .btn:hover { opacity: 0.9; }
+        .btn-success { background: var(--success); }
+        .btn-danger { background: var(--danger); }
+        .btn-sec { background: #6c757d; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: 600; margin-bottom: 8px; }
+        input[type="text"] { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; }
+        .task-card { background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid var(--primary); }
+        .lesson-item { background: #f8f9fa; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .lesson-actions { display: flex; gap: 10px; }
+        .grid-container { display: flex; margin: 30px 0; position: relative; background: #fff; border: 1px solid #ddd; border-radius: 8px; }
+        .y-axis { display: flex; flex-direction: column; justify-content: space-between; width: 230px; padding: 25px 10px; font-size: 13px; font-weight: bold; border-right: 2px solid #ccc; background: #fafafa; text-align: right; box-sizing: border-box; }
+        .y-label { height: 60px; display: flex; align-items: center; justify-content: flex-end; }
+        .chart-area { flex-grow: 1; position: relative; height: 300px; }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: pointer; }
+        .x-axis-labels { display: flex; justify-content: space-between; padding-left: 230px; margin-top: 10px; font-size: 14px; font-weight: 600; }
+        .x-label { flex: 1; text-align: center; cursor: pointer; color: var(--primary); text-decoration: underline; }
+        .task-info-box { background: #eef1f6; padding: 15px; border-radius: 8px; margin-top: 20px; font-size: 16px; }
+        .recommendations { margin-top: 30px; background: #eef7f6; padding: 25px; border-radius: 8px; border-left: 4px solid var(--success); }
+        .rec-item { margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px dashed #ccc; line-height: 1.6; }
+        .rec-item:last-child { border-bottom: none; }
+        .share-box { background: #e8f5e9; padding: 20px; border-radius: 8px; margin-top: 20px; text-align: center; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="roleScreen" class="role-selection">
+        <h1>Интерактивная «Кардиограмма Урока»</h1>
+        <p>Выберите вашу роль для работы с платформой:</p>
+        <div class="role-btn-container">
+            <button class="btn" onclick="initTeacherPanel()">Я Учитель 👩‍🏫</button>
+            <button class="btn btn-success" onclick="initStudentList()">Я Ученик 👨‍🎓</button>
+        </div>
+    </div>
+
+    <div id="teacherDashboard" class="hidden">
+        <h2>Кабинет Учителя</h2>
+        <div style="text-align: right; margin-bottom: 20px;">
+            <button class="btn btn-success" onclick="openLessonConstructor()">+ Создать новый урок</button>
+        </div>
+        <h3>Ваши уроки:</h3>
+        <div id="teacherLessonsList">Загрузка списка уроков...</div>
+        <br>
+        <button class="btn btn-sec" onclick="location.reload()">На главную</button>
+    </div>
+
+    <div id="teacherScreen" class="hidden">
+        <h2 id="constructorTitle">Конструктор Урока</h2>
+        <input type="hidden" id="editingLessonId">
+        <div class="form-group">
+            <label for="lessonTitle">Название / Тема урока:</label>
+            <input type="text" id="lessonTitle" placeholder="Например: Правописание суффиксов причастий">
+        </div>
+        <div id="tasksContainer"></div>
+        <button class="btn btn-sec" onclick="addTaskField()">+ Добавить задание</button>
+        <button class="btn btn-success" style="float: right;" onclick="saveLesson()">Сохранить урок 💾</button>
+        <button class="btn btn-sec" style="float: right; margin-right: 10px;" onclick="initTeacherPanel()">Отмена</button>
+        <div id="shareBox" class="share-box hidden">
+            <h3>Урок успешно сохранен! 🎉</h3>
+            <p>Скопируйте ссылку и отправьте её ученикам:</p>
+            <input type="text" id="shareUrl" readonly style="text-align:center; font-weight:bold; width:80%;">
+            <br><br>
+            <button class="btn" onclick="initTeacherPanel()">Вернуться в кабинет</button>
+        </div>
+    </div>
+
+    <div id="studentListScreen" class="hidden">
+        <h2>Выберите ваш урок</h2>
+        <div id="lessonsList">Загрузка доступных уроков...</div>
+        <button class="btn btn-sec" onclick="location.reload()">Назад</button>
+    </div>
+
+    <div id="studentScreen" class="hidden">
+        <h2 id="studentLessonTitle">Рефлексия урока</h2>
+        <div class="grid-container">
+            <div class="y-axis">
+                <div class="y-label" style="color:var(--success)">Отлично 🌟</div>
+                <div class="y-label" style="color:#e67e22">Удовлетворительно 👍</div>
+                <div class="y-label" style="color:var(--danger)">Плохо справился ❌</div>
+            </div>
+            <div class="chart-area" id="chartArea"><canvas id="chartCanvas"></canvas></div>
+        </div>
+        <div class="x-axis-labels" id="xAxisLabels"></div>
+        <div class="task-info-box">
+            <strong>Что нужно было сделать на этом этапе:</strong> 
+            <p id="taskDescription" style="margin-top: 5px; font-style: italic;">Выберите задание под графиком.</p>
+        </div>
+        <div style="text-align: center; margin-top: 30px;">
+            <button class="btn btn-success" id="analyzeBtn" onclick="analyzeCardiogram()">Проанализировать и завершить 📈</button>
+        </div>
+        <div id="loadingBox" class="hidden" style="text-align:center; margin-top:20px;">
+            <div class="loader"></div>
+            <p>🤖 Сервер обрабатывает запрос. Нейросеть Gemini конфиденциально генерирует правила...</p>
+        </div>
+        <div id="recommendationsBox" class="recommendations hidden">
+            <h3>📋 Персональный разбор от защищенного ИИ:</h3>
+            <div id="recContent"></div>
+            <br>
+            <button class="btn btn-sec" onclick="location.reload()">Завершить работу</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // НАСТРОЙКИ FIREBASE (Вставьте свои данные)
+    const firebaseConfig = {
+  apiKey: "AIzaSyDYYyCYdlBFfLE5dYz2oDblD7ipGlBCuVY",
+  authDomain: "cardiogram-lessons.firebaseapp.com",
+  projectId: "cardiogram-lessons",
+  storageBucket: "cardiogram-lessons.firebasestorage.app",
+  messagingSenderId: "640778365656",
+  appId: "1:640778365656:web:053330223bae29e35e05ad",
+  measurementId: "G-X7NYE8JTDY"
+};
+
+    // ССЫЛКА НА НАШ БУДУЩИЙ БЕЗОПАСНЫЙ СЕРВЕР (Заполним на Шаге 2)
+    const SERVER_BACKEND_URL = "/api/analyze"; 
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let taskCount = 0; let currentLessonData = null; let studentScores = {}; let canvas; let ctx;
+
+    window.onload = function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const lessonId = urlParams.get('id');
+        if (lessonId) loadLessonForStudent(lessonId);
+    }
+
+    function initTeacherPanel() {
+        document.getElementById('roleScreen').classList.add('hidden');
+        document.getElementById('teacherScreen').classList.add('hidden');
+        document.getElementById('teacherDashboard').classList.remove('hidden');
+        loadTeacherLessons();
+    }
+
+    function loadTeacherLessons() {
+        const container = document.getElementById('teacherLessonsList'); container.innerHTML = 'Загрузка...';
+        db.collection("lessons").orderBy("createdAt", "desc").get().then((querySnapshot) => {
+            container.innerHTML = '';
+            if (querySnapshot.empty) { container.innerHTML = '<p>Нет уроков.</p>'; return; }
+            querySnapshot.forEach((doc) => {
+                const lesson = doc.data();
+                const div = document.createElement('div'); div.className = 'lesson-item';
+                div.innerHTML = `<strong>${lesson.title}</strong><div class="lesson-actions">
+                    <button class="btn btn-sec" onclick="editLesson('${doc.id}')">Редактировать ✏️</button>
+                    <button class="btn btn-danger" onclick="deleteLesson('${doc.id}')">Удалить 🗑️</button>
+                </div>`;
+                container.appendChild(div);
+            });
+        });
+    }
+
+    function openLessonConstructor() {
+        document.getElementById('teacherDashboard').classList.add('hidden');
+        document.getElementById('teacherScreen').classList.remove('hidden');
+        document.getElementById('shareBox').classList.add('hidden');
+        document.getElementById('constructorTitle').innerText = "Создать новый урок";
+        document.getElementById('editingLessonId').value = ""; document.getElementById('lessonTitle').value = "";
+        document.getElementById('tasksContainer').innerHTML = ''; taskCount = 0; addTaskField();
+    }
+
+    function addTaskField(value = "") {
+        taskCount++;
+        const container = document.getElementById('tasksContainer');
+        const card = document.createElement('div'); card.className = 'task-card'; card.id = `task_card_${taskCount}`;
+        card.innerHTML = `<h4>Задание №${taskCount}</h4><div class="form-group">
+            <input type="text" class="task-desc" value="${value}" placeholder="Что нужно было сделать...">
+        </div>`;
+        container.appendChild(card);
+    }
+
+    function saveLesson() {
+        const title = document.getElementById('lessonTitle').value.trim();
+        const lessonId = document.getElementById('editingLessonId').value;
+        if (!title) return alert('Введите название!');
+        const descs = document.querySelectorAll('.task-desc'); let tasks = [];
+        for (let i = 0; i < descs.length; i++) {
+            if (!descs[i].value.trim()) return alert(`Заполните задание №${i+1}`);
+            tasks.push({ desc: descs[i].value.trim() });
+        }
+        const lessonData = { title: title, tasks: tasks, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+        if (lessonId) {
+            db.collection("lessons").doc(lessonId).set(lessonData, { merge: true }).then(() => showShareLink(lessonId));
+        } else {
+            db.collection("lessons").add(lessonData).then((docRef) => showShareLink(docRef.id));
+        }
+    }
+
+    function showShareLink(id) {
+        const shareUrl = window.location.origin + window.location.pathname + '?id=' + id;
+        document.getElementById('shareUrl').value = shareUrl;
+        document.getElementById('shareBox').classList.remove('hidden');
+    }
+
+    function editLesson(id) {
+        db.collection("lessons").doc(id).get().then((doc) => {
+            if (!doc.exists) return; const lesson = doc.data(); openLessonConstructor();
+            document.getElementById('constructorTitle').innerText = "Редактирование урока";
+            document.getElementById('editingLessonId').value = id; document.getElementById('lessonTitle').value = lesson.title;
+            document.getElementById('tasksContainer').innerHTML = ''; taskCount = 0;
+            lesson.tasks.forEach(t => addTaskField(t.desc));
+        });
+    }
+
+    function deleteLesson(id) {
+        if (confirm("Удалить этот урок?")) { db.collection("lessons").doc(id).delete().then(() => loadTeacherLessons()); }
+    }
+
+    function initStudentList() {
+        document.getElementById('roleScreen').classList.add('hidden');
+        document.getElementById('studentListScreen').classList.remove('hidden');
+        db.collection("lessons").orderBy("createdAt", "desc").get().then((querySnapshot) => {
+            const listDiv = document.getElementById('lessonsList'); listDiv.innerHTML = '';
+            querySnapshot.forEach((doc) => {
+                const btn = document.createElement('button'); btn.className = 'btn btn-sec';
+                btn.style.width = '100%'; btn.style.marginBottom = '10px'; btn.innerText = doc.data().title;
+                btn.onclick = () => loadLessonForStudent(doc.id); listDiv.appendChild(btn);
+            });
+        });
+    }
+
+    function loadLessonForStudent(lessonId) {
+        document.getElementById('roleScreen').classList.add('hidden');
+        document.getElementById('studentListScreen').classList.add('hidden');
+        document.getElementById('studentScreen').classList.remove('hidden');
+        db.collection("lessons").doc(lessonId).get().then((doc) => {
+            currentLessonData = doc.data(); document.getElementById('studentLessonTitle').innerText = currentLessonData.title; buildChart();
+        });
+    }
+
+    function buildChart() {
+        const tasks = currentLessonData.tasks; const xLabelsContainer = document.getElementById('xAxisLabels');
+        xLabelsContainer.innerHTML = ''; studentScores = {};
+        tasks.forEach((task, idx) => {
+            const lbl = document.createElement('div'); lbl.className = 'x-label'; lbl.innerText = `Задание ${idx + 1}`;
+            lbl.onclick = () => { document.getElementById('taskDescription').innerText = `Задание №${idx+1}: ${task.desc}`; };
+            xLabelsContainer.appendChild(lbl);
+        });
+        canvas = document.getElementById('chartCanvas'); ctx = canvas.getContext('2d'); resizeCanvas();
+        canvas.onclick = function(e) {
+            const rect = canvas.getBoundingClientRect(); const x = e.clientX - rect.left; const y = e.clientY - rect.top;
+            const segmentWidth = canvas.width / tasks.length; const taskIdx = Math.floor(x / segmentWidth);
+            const segmentHeight = canvas.height / 3; let scoreLevel = 3 - Math.floor(y / segmentHeight);
+            if(scoreLevel > 3) scoreLevel = 3; if(scoreLevel < 1) scoreLevel = 1;
+            studentScores[taskIdx] = scoreLevel; drawCardiogram();
+            document.getElementById('taskDescription').innerText = `Задание №${taskIdx+1}: ${tasks[taskIdx].desc}`;
+        };
+    }
+
+    function resizeCanvas() { const area = document.getElementById('chartArea'); if(area) { canvas.width = area.clientWidth; canvas.height = area.clientHeight; drawCardiogram(); } }
+
+    function drawCardiogram() {
+        if (!canvas || !currentLessonData) return; ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const tasks = currentLessonData.tasks; const segmentWidth = canvas.width / tasks.length; const segmentHeight = canvas.height / 3;
+        ctx.strokeStyle = '#eef0f2';
+        for(let i=1; i<3; i++) { ctx.beginPath(); ctx.moveTo(0, i * segmentHeight); ctx.lineTo(canvas.width, i * segmentHeight); ctx.stroke(); }
+        let points = [];
+        for (let i = 0; i < tasks.length; i++) {
+            if (studentScores[i] !== undefined) {
+                const x = (i * segmentWidth) + (segmentWidth / 2); const y = canvas.height - ((studentScores[i] - 0.5) * segmentHeight);
+                points.push({x, y});
+            }
+        }
+        if (points.length > 0) {
+            ctx.beginPath(); ctx.strokeStyle = '#4a6fa5'; ctx.lineWidth = 3; ctx.moveTo(points[0].x, points[0].y);
+            for(let i=1; i<points.length; i++) ctx.lineTo(points[i].x, points[i].y); ctx.stroke();
+            points.forEach(p => { ctx.beginPath(); ctx.fillStyle = '#e71d36'; ctx.arc(p.x, p.y, 7, 0, 2 * Math.PI); ctx.fill(); });
+        }
+    }
+
+    // БЕЗОПАСНЫЙ ЗАПРОС К НАШЕМУ СЕРВЕРУ БЕЗ ВШИТЫХ КЛЮЧЕЙ
+    async function analyzeCardiogram() {
+        const tasks = currentLessonData.tasks;
+        for(let i=0; i<tasks.length; i++) { if (studentScores[i] === undefined) return alert(`Заполните все точки!`); }
+
+        document.getElementById('analyzeBtn').classList.add('hidden');
+        document.getElementById('loadingBox').classList.remove('hidden');
+
+        let summary = [];
+        tasks.forEach((task, idx) => {
+            let status = "Отлично"; if(studentScores[idx] === 2) status = "Удовлетворительно"; if(studentScores[idx] === 1) status = "Плохо";
+            summary.push({ task: task.desc, score: status });
+        });
+
+        try {
+            // Отправляем данные на наш будущий закрытый сервер
+            const response = await fetch(SERVER_BACKEND_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ lessonTitle: currentLessonData.title, data: summary })
+            });
+
+            if (!response.ok) throw new Error("Ошибка сервера");
+            const result = await response.json();
+
+            document.getElementById('loadingBox').classList.add('hidden');
+            document.getElementById('recommendationsBox').classList.remove('hidden');
+            document.getElementById('recContent').innerHTML = result.analysis;
+
+        } catch (error) {
+            console.error(error);
+            document.getElementById('loadingBox').classList.add('hidden');
+            document.getElementById('recommendationsBox').classList.remove('hidden');
+            document.getElementById('recContent').innerHTML = "<p>⚠️ Ошибка генерации разбора. Проверьте настройки бэкенда.</p>";
+        }
+    }
+</script>
+</body>
+</html>
