@@ -93,53 +93,81 @@
         .lesson-actions { display: flex; gap: 10px; width: 100%; }
         @media(min-width: 600px) { .lesson-actions { width: auto; } }
         
-        /* 📉 ГИБКАЯ СТРУКТУРА ГРАФИКА ДЛЯ МОБИЛЬНЫХ */
+                /* 📉 АДАПТИВНАЯ ГРАФИЧЕСКАЯ СЕТКА С ВЕРТИКАЛЬНОЙ БОКОВОЙ ШКАЛОЙ */
         .grid-container {
             display: flex; 
-            flex-direction: column; /* Сначала шкала, под ней график на мобильном */
+            flex-direction: row; /* Всегда держим шкалу сбоку, и на ПК, и на телефонах */
             margin: 20px 0; 
             background: #fff; 
             border: 1px solid #ddd; 
             border-radius: 8px;
+            overflow: hidden;
         }
         
         .y-axis {
             display: flex; 
-            flex-direction: row; /* Боковая шкала превращается в верхнюю строку-подсказку на смартфонах */
+            flex-direction: column; 
             justify-content: space-between;
-            width: 100%; 
-            padding: 10px; 
-            font-size: 11px; 
+            width: 95px; /* Компактная ширина для мобильных экранов */
+            padding: 15px 5px; 
+            font-size: 11px; /* Чуть уменьшенный шрифт, чтобы длинные фразы не ломали верстку */
             font-weight: bold;
-            border-right: none; 
-            border-bottom: 2px solid #ccc; 
+            border-right: 2px solid #ccc; 
+            border-bottom: none;
             background: #fafafa; 
             box-sizing: border-box;
+            text-align: right;
+            flex-shrink: 0; /* Запрещаем шкале сжиматься */
         }
-        .y-label { height: auto; display: flex; align-items: center; justify-content: center; text-align: center; }
+        
+        .y-label { 
+            height: 50px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: flex-end; 
+            text-align: right; 
+            line-height: 1.2;
+        }
 
+        /* На больших экранах компьютеров делаем шкалу чуть просторнее */
         @media(min-width: 768px) {
-            .grid-container { flex-direction: row; }
-            .y-axis { flex-direction: column; width: 230px; border-right: 2px solid #ccc; border-bottom: none; padding: 25px 10px; font-size: 13px; text-align: right; }
-            .y-label { height: 60px; justify-content: flex-end; text-align: right; }
+            .y-axis { 
+                width: 230px; 
+                padding: 25px 10px; 
+                font-size: 13px; 
+            }
+            .y-label { 
+                height: 60px; 
+            }
         }
 
-        .chart-area { flex-grow: 1; position: relative; height: 250px; background: #fff; }
+        .chart-area { 
+            flex-grow: 1; 
+            position: relative; 
+            height: 220px; /* Оптимальная высота для мобильных, чтобы весь экран не занимало */
+            background: #fff; 
+        }
         canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: pointer; }
         
         .x-axis-labels {
             display: flex; 
             justify-content: space-between; 
-            padding-left: 0; 
+            padding-left: 95px; /* Должно строго совпадать с шириной .y-axis на мобильном */
             margin-top: 10px; 
-            font-size: 12px; 
+            font-size: 11px; 
             font-weight: 600;
             gap: 5px;
+            box-sizing: border-box;
         }
+        
         @media(min-width: 768px) {
-            .x-axis-labels { padding-left: 230px; font-size: 14px; }
+            .x-axis-labels { 
+                padding-left: 230px; /* Соответствует ширине .y-axis на ПК */
+                font-size: 14px; 
+            }
         }
         .x-label { flex: 1; text-align: center; cursor: pointer; color: var(--primary); text-decoration: underline; word-break: break-word; }
+
         
         .task-info-box {
             background: #eef1f6; padding: 15px; border-radius: 8px; margin-top: 20px; font-size: 15px; box-sizing: border-box;
@@ -396,15 +424,30 @@
 
     function resizeCanvas() { const area = document.getElementById('chartArea'); if(area) { canvas.width = area.clientWidth; canvas.height = area.clientHeight; drawCardiogram(); } }
 
-    function drawCardiogram() {
-        if (!canvas || !currentLessonData) return; ctx.clearRect(0, 0, canvas.width, canvas.height);
-        const tasks = currentLessonData.tasks; const segmentWidth = canvas.width / tasks.length; const segmentHeight = canvas.height / 3;
+        function drawCardiogram() {
+        if (!canvas || !currentLessonData) return; 
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        const tasks = currentLessonData.tasks; 
+        const segmentWidth = canvas.width / tasks.length; 
+        const segmentHeight = canvas.height / 3; // Проверьте, чтобы здесь делилось строго на 3
+        
+        // Отрисовка горизонтальных линий-помощников внутри сетки
         ctx.strokeStyle = '#eef0f2';
-        for(let i=1; i<3; i++) { ctx.beginPath(); ctx.moveTo(0, i * segmentHeight); ctx.lineTo(canvas.width, i * segmentHeight); ctx.stroke(); }
+        ctx.lineWidth = 1;
+        for(let i=1; i<3; i++) { 
+            ctx.beginPath(); 
+            ctx.moveTo(0, i * segmentHeight); 
+            ctx.lineTo(canvas.width, i * segmentHeight); 
+            ctx.stroke(); 
+        }
+        
+        // Отрисовка линий кардиограммы и точек
         let points = [];
         for (let i = 0; i < tasks.length; i++) {
             if (studentScores[i] !== undefined) {
-                const x = (i * segmentWidth) + (segmentWidth / 2); const y = canvas.height - ((studentScores[i] - 0.5) * segmentHeight);
+                const x = (i * segmentWidth) + (segmentWidth / 2); 
+                const y = canvas.height - ((studentScores[i] - 0.5) * segmentHeight);
                 points.push({x, y});
             }
         }
@@ -414,6 +457,7 @@
             points.forEach(p => { ctx.beginPath(); ctx.fillStyle = '#e71d36'; ctx.arc(p.x, p.y, 7, 0, 2 * Math.PI); ctx.fill(); });
         }
     }
+
 
     // БЕЗОПАСНЫЙ ЗАПРОС К НАШЕМУ СЕРВЕРУ БЕЗ ВШИТЫХ КЛЮЧЕЙ
     async function analyzeCardiogram() {
