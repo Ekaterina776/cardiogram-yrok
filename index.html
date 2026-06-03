@@ -7,35 +7,150 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     
-    <style>
-        :root { --primary: #4a6fa5; --success: #2ec4b6; --danger: #e71d36; --bg: #f8f9fa; --text: #2b2d42; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .container { width: 100%; max-width: 900px; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
-        h1, h2, h3 { text-align: center; color: var(--primary); }
+        <style>
+        :root {
+            --primary: #4a6fa5;
+            --success: #2ec4b6;
+            --danger: #e71d36;
+            --bg: #f8f9fa;
+            --text: #2b2d42;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 10px; /* Уменьшили отступы для мобильных */
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: white;
+            padding: 20px; /* Сделали отступы компактнее */
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            box-sizing: border-box;
+        }
+        h1, h2, h3 { text-align: center; color: var(--primary); font-size: 1.5rem; }
         .hidden { display: none !important; }
-        .btn { display: inline-block; background: var(--primary); color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px; transition: 0.2s; text-align: center; }
+        
+        .btn {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 12px 20px; /* Чуть увеличили для удобного нажатия пальцем */
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 15px;
+            transition: 0.2s;
+            text-align: center;
+            box-sizing: border-box;
+            width: 100%; /* На мобильных кнопка будет во всю ширину */
+            margin-bottom: 10px;
+        }
+        
+        @media(min-width: 600px) {
+            .btn { width: auto; margin-bottom: 0; } /* На ПК возвращаем обычный размер */
+        }
+        
         .btn:hover { opacity: 0.9; }
         .btn-success { background: var(--success); }
         .btn-danger { background: var(--danger); }
         .btn-sec { background: #6c757d; }
+        
+        /* Роли */
+        .role-selection { text-align: center; padding: 30px 0; }
+        .role-btn-container { 
+            display: flex; 
+            flex-direction: column; /* Кнопки ролей друг под другом на мобильном */
+            gap: 15px; 
+            margin-top: 30px; 
+        }
+        @media(min-width: 600px) {
+            .role-btn-container { flex-direction: row; justify-content: center; }
+        }
+
+        /* Конструктор Учителя */
         .form-group { margin-bottom: 20px; }
         label { display: block; font-weight: 600; margin-bottom: 8px; }
-        input[type="text"] { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; }
-        .task-card { background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid var(--primary); }
-        .lesson-item { background: #f8f9fa; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-        .lesson-actions { display: flex; gap: 10px; }
-        .grid-container { display: flex; margin: 30px 0; position: relative; background: #fff; border: 1px solid #ddd; border-radius: 8px; }
-        .y-axis { display: flex; flex-direction: column; justify-content: space-between; width: 230px; padding: 25px 10px; font-size: 13px; font-weight: bold; border-right: 2px solid #ccc; background: #fafafa; text-align: right; box-sizing: border-box; }
-        .y-label { height: 60px; display: flex; align-items: center; justify-content: flex-end; }
-        .chart-area { flex-grow: 1; position: relative; height: 300px; }
+        input[type="text"] {
+            width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px;
+        }
+        .task-card {
+            background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid var(--primary);
+        }
+        .lesson-item {
+            background: #f8f9fa; border: 1px solid #ddd; padding: 15px; border-radius: 8px; 
+            margin-bottom: 10px; display: flex; flex-direction: column; gap: 10px; /* Вертикально на мобильном */
+        }
+        @media(min-width: 600px) {
+            .lesson-item { flex-direction: row; justify-content: space-between; align-items: center; }
+        }
+        .lesson-actions { display: flex; gap: 10px; width: 100%; }
+        @media(min-width: 600px) { .lesson-actions { width: auto; } }
+        
+        /* 📉 ГИБКАЯ СТРУКТУРА ГРАФИКА ДЛЯ МОБИЛЬНЫХ */
+        .grid-container {
+            display: flex; 
+            flex-direction: column; /* Сначала шкала, под ней график на мобильном */
+            margin: 20px 0; 
+            background: #fff; 
+            border: 1px solid #ddd; 
+            border-radius: 8px;
+        }
+        
+        .y-axis {
+            display: flex; 
+            flex-direction: row; /* Боковая шкала превращается в верхнюю строку-подсказку на смартфонах */
+            justify-content: space-between;
+            width: 100%; 
+            padding: 10px; 
+            font-size: 11px; 
+            font-weight: bold;
+            border-right: none; 
+            border-bottom: 2px solid #ccc; 
+            background: #fafafa; 
+            box-sizing: border-box;
+        }
+        .y-label { height: auto; display: flex; align-items: center; justify-content: center; text-align: center; }
+
+        @media(min-width: 768px) {
+            .grid-container { flex-direction: row; }
+            .y-axis { flex-direction: column; width: 230px; border-right: 2px solid #ccc; border-bottom: none; padding: 25px 10px; font-size: 13px; text-align: right; }
+            .y-label { height: 60px; justify-content: flex-end; text-align: right; }
+        }
+
+        .chart-area { flex-grow: 1; position: relative; height: 250px; background: #fff; }
         canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: pointer; }
-        .x-axis-labels { display: flex; justify-content: space-between; padding-left: 230px; margin-top: 10px; font-size: 14px; font-weight: 600; }
-        .x-label { flex: 1; text-align: center; cursor: pointer; color: var(--primary); text-decoration: underline; }
-        .task-info-box { background: #eef1f6; padding: 15px; border-radius: 8px; margin-top: 20px; font-size: 16px; }
-        .recommendations { margin-top: 30px; background: #eef7f6; padding: 25px; border-radius: 8px; border-left: 4px solid var(--success); }
-        .rec-item { margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px dashed #ccc; line-height: 1.6; }
+        
+        .x-axis-labels {
+            display: flex; 
+            justify-content: space-between; 
+            padding-left: 0; 
+            margin-top: 10px; 
+            font-size: 12px; 
+            font-weight: 600;
+            gap: 5px;
+        }
+        @media(min-width: 768px) {
+            .x-axis-labels { padding-left: 230px; font-size: 14px; }
+        }
+        .x-label { flex: 1; text-align: center; cursor: pointer; color: var(--primary); text-decoration: underline; word-break: break-word; }
+        
+        .task-info-box {
+            background: #eef1f6; padding: 15px; border-radius: 8px; margin-top: 20px; font-size: 15px; box-sizing: border-box;
+        }
+        .recommendations { margin-top: 30px; background: #eef7f6; padding: 15px; border-radius: 8px; border-left: 4px solid var(--success); }
+        @media(min-width: 600px) { .recommendations { padding: 25px; } }
+        
+        .rec-item { margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px dashed #ccc; line-height: 1.6; font-size: 15px; }
         .rec-item:last-child { border-bottom: none; }
         .share-box { background: #e8f5e9; padding: 20px; border-radius: 8px; margin-top: 20px; text-align: center; }
+        
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
