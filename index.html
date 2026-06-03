@@ -372,14 +372,26 @@
             xLabelsContainer.appendChild(lbl);
         });
         canvas = document.getElementById('chartCanvas'); ctx = canvas.getContext('2d'); resizeCanvas();
-        canvas.onclick = function(e) {
-            const rect = canvas.getBoundingClientRect(); const x = e.clientX - rect.left; const y = e.clientY - rect.top;
-            const segmentWidth = canvas.width / tasks.length; const taskIdx = Math.floor(x / segmentWidth);
-            const segmentHeight = canvas.height / 3; let scoreLevel = 3 - Math.floor(y / segmentHeight);
-            if(scoreLevel > 3) scoreLevel = 3; if(scoreLevel < 1) scoreLevel = 1;
-            studentScores[taskIdx] = scoreLevel; drawCardiogram();
+                canvas.onclick = function(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const segmentWidth = canvas.width / tasks.length;
+            const taskIdx = Math.floor(x / segmentWidth);
+
+            const segmentHeight = canvas.height / 3;
+            // Рассчитываем уровень высоты точки
+            let scoreLevel = 3 - Math.floor(y / segmentHeight); 
+            if(scoreLevel > 3) scoreLevel = 3;
+            if(scoreLevel < 1) scoreLevel = 1;
+
+            studentScores[taskIdx] = scoreLevel;
+            drawCardiogram();
+            
             document.getElementById('taskDescription').innerText = `Задание №${taskIdx+1}: ${tasks[taskIdx].desc}`;
         };
+
     }
 
     function resizeCanvas() { const area = document.getElementById('chartArea'); if(area) { canvas.width = area.clientWidth; canvas.height = area.clientHeight; drawCardiogram(); } }
